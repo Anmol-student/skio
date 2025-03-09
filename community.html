@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Page</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">
+            <img src="assets/logo.png" alt="Logo">
+        </div>
+        <div class="navbar-links">
+            <a href="community.html" id="community-link">Community</a>
+            <a href="profile.html" id="profile-link">Profile</a>
+        </div>
+        <div class="navbar-logout">
+            <button id="logout-button">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Community Container -->
+    <div class="community-container">
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search posts by title or description...">
+            <button id="search-button">Search</button>
+        </div>
+
+        <!-- Posts Grid -->
+        <div id="posts-grid" class="posts-grid">
+            <!-- Posts will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <!-- Post Details Modal -->
+    <div id="post-details-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modal-post-title"></h2>
+            <img id="modal-post-thumbnail" src="" alt="Thumbnail" class="modal-thumbnail">
+            <p id="modal-post-description"></p>
+            <div class="modal-post-info">
+                <p><strong>Posted By:</strong> <span id="modal-post-author"></span></p>
+                <p><strong>Posted On:</strong> <span id="modal-post-time"></span></p>
+            </div>
+            <div id="modal-post-files">
+                <!-- Files will be dynamically inserted here -->
+            </div>
+            <button id="download-button" class="download-button">Download Files</button>
+        </div>
+    </div>
+
+    <!-- Add Firebase CDN -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAmSC20LuRf5GaBOoWH6IOHcUnPC9prpGY",
+            authDomain: "scholarbuddy-a7229.firebaseapp.com",
+            projectId: "scholarbuddy-a7229",
+            storageBucket: "scholarbuddy-a7229.appspot.com",
+            messagingSenderId: "402957942354",
+            appId: "1:402957942354:web:05d96311489a21fd37698b",
+            measurementId: "G-DGGY82XP9X"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let allPosts = []; // Global variable to store all posts
+
+        // Function to open the post details modal
+        const openPostDetailsModal = (post) => {
+            const modal = document.getElementById("post-details-modal");
+            const modalTitle = document.getElementById("modal-post-title");
+            const modalThumbnail = document.getElementById("modal-post-thumbnail");
+            const modalDescription = document.getElementById("modal-post-description");
+            const modalAuthor = document.getElementById("modal-post-author");
+            const modalTime = document.getElementById("modal-post-time");
+            const modalFiles = document.getElementById("modal-post-files");
+
+            // Populate modal with post details
+            modalTitle.textContent = post.title;
+            modalThumbnail.src = post.thumbnail;
+            modalDescription.textContent = post.description;
+            modalAuthor.textContent = post.userName || "Unknown User"; // Replace with actual user name if available
+            modalTime.textContent = new Date(post.createdAt.seconds * 1000).toLocaleString();
+
+            // Clear previous files
+            modalFiles.innerHTML = "";
+
+            // Add files to the modal
+            post.files.forEach((file, index) => {
+                const fileElement = document.createElement("div");
+                fileElement.className = "file-item";
+                fileElement.innerHTML = `
+                    <a href="${file}" target="_blank">Download File ${index + 1}</a>
+                `;
+                modalFiles.appendChild(fileElement);
+            });
+
+            // Show the modal
+            modal.style.display = "block";
+        };
+
+        // Function to close the modal
+        const closePostDetailsModal = () => {
+            const modal = document.getElementById("post-details-modal");
+            modal.style.display = "none";
+        };
+
+        // Attach event listeners to posts
+        const attachPostClickListeners = () => {
+            const postCards = document.querySelectorAll(".post-card");
+            postCards.forEach((postCard) => {
+                postCard.addEventListener("click", () => {
+                    const postId = postCard.getAttribute("data-post-id");
+                    const post = allPosts.find((p) => p.id === postId);
+                    if (post) {
+                        openPostDetailsModal(post);
+                    }
+                });
+            });
+        };
+
+        // Close modal when clicking the close button
+        document.querySelector("#post-details-modal .close").addEventListener("click", closePostDetailsModal);
+
+        // Close modal when clicking outside the modal
+        window.addEventListener("click", (event) => {
+            const modal = document.getElementById("post-details-modal");
+            if (event.target === modal) {
+                closePostDetailsModal();
+            }
+        });
+
+        // Fetch All Posts
+        const fetchAllPosts = async () => {
+            try {
+                const postsRef = collection(db, "posts");
+                const querySnapshot = await getDocs(postsRef);
+                const posts = [];
+                querySnapshot.forEach((doc) => {
+                    posts.push({ id: doc.id, ...doc.data() });
+                });
+                return posts;
+            } catch (error) {
+                console.error("Error fetching posts:", error);
+                return [];
+            }
+        };
+
+        // Render Posts
+        const renderPosts = (posts) => {
+            const postsGrid = document.getElementById("posts-grid");
+            postsGrid.innerHTML = ""; // Clear existing posts
+
+            posts.forEach((post) => {
+                const postElement = document.createElement("div");
+                postElement.className = "post-card";
+                postElement.setAttribute("data-post-id", post.id); // Add data-post-id attribute
+                postElement.innerHTML = `
+                    <img src="${post.thumbnail}" alt="Thumbnail" class="post-thumbnail">
+                    <h3 class="post-title">${post.title}</h3>
+                    <p class="post-description">${post.description || "No description available"}</p>
+                `;
+                postsGrid.appendChild(postElement);
+            });
+
+            // Attach click listeners to posts after rendering
+            attachPostClickListeners();
+        };
+
+        // Search Posts
+        const searchPosts = (posts, query) => {
+            if (!query) return posts; // Return all posts if search query is empty
+
+            return posts
+                .filter((post) => {
+                    const titleMatch = post.title?.toLowerCase().includes(query.toLowerCase());
+                    const descriptionMatch = post.description?.toLowerCase().includes(query.toLowerCase());
+                    return titleMatch || descriptionMatch;
+                })
+                .sort((a, b) => {
+                    // Sort by relevance: posts with title matches come first
+                    const aTitleMatch = a.title?.toLowerCase().includes(query.toLowerCase());
+                    const bTitleMatch = b.title?.toLowerCase().includes(query.toLowerCase());
+
+                    if (aTitleMatch && !bTitleMatch) return -1; // a comes first
+                    if (!aTitleMatch && bTitleMatch) return 1; // b comes first
+                    return 0; // no change in order
+                });
+        };
+
+        // Handle Search
+        const handleSearch = async () => {
+            const query = document.getElementById("search-input").value.trim();
+            allPosts = await fetchAllPosts(); // Update global allPosts
+            const filteredPosts = searchPosts(allPosts, query);
+            renderPosts(filteredPosts);
+        };
+
+        // Attach Search Button Event Listener
+        document.getElementById("search-button").addEventListener("click", handleSearch);
+
+        // Attach Enter Key Event Listener to Search Input
+        document.getElementById("search-input").addEventListener("keyup", (e) => {
+            if (e.key === "Enter") {
+                handleSearch();
+            }
+        });
+
+        // Check if user is logged in
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is logged in, fetch and render posts
+                allPosts = await fetchAllPosts(); // Update global allPosts
+                renderPosts(allPosts);
+            } else {
+                // Redirect to login page if not logged in
+                console.log("User is not logged in. Redirecting to login.html...");
+                window.location.href = "login.html";
+            }
+        });
+    </script>
+</body>
+</html>
