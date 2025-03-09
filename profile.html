@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Page</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Add Cloudinary Script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cloudinary-core/2.11.4/cloudinary-core-shrinkwrap.min.js"></script>
+    <script src="script.js"></script>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-logo">
+            <img src="assets/logo.png" alt="Logo">
+        </div>
+        <div class="navbar-links">
+            <a href="community.html" id="community-link">Community</a>
+            <a href="profile.html" id="profile-link">Profile</a>
+        </div>
+        <div class="navbar-logout">
+            <button id="logout-button">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Profile Container -->
+    <div class="profile-container">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <h1>Profile</h1>
+            <p>Welcome back, <span id="username">Deepak Sharma</span>!</p>
+        </div>
+        <div id="ownflex">
+        <!-- Profile Form -->
+        <div class="profile-form-container">
+            <h2>Edit Profile</h2>
+            <form id="profile-form">
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="text" id="phone" name="phone" placeholder="Enter your phone number" required>
+                </div>
+                <div class="form-group">
+                    <label for="state">State</label>
+                    <input type="text" id="state" name="state" placeholder="Enter your state" required>
+                </div>
+                <div class="form-group">
+                    <label for="city">City</label>
+                    <input type="text" id="city" name="city" placeholder="Enter your city" required>
+                </div>
+                <div class="form-group">
+                    <label for="about">About You</label>
+                    <textarea id="about" name="about" placeholder="Write something about yourself..." required></textarea>
+                </div>
+                <button type="submit" class="save-button">Save Changes</button>
+            </form>
+        </div>
+
+        <!-- My Posts Section -->
+        <div class="my-posts">
+            <h2>My Posts</h2>
+            <button id="new-post" class="new-post-button">+ New Post</button>
+            <div id="post-list" class="post-list">
+                <!-- Posts will be dynamically inserted here -->
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Post Modal -->
+    <div id="post-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Create New Post</h2>
+            <form id="post-form">
+                <div class="form-group">
+                    <label for="post-title">Title</label>
+                    <input type="text" id="post-title" name="post-title" placeholder="Enter post title" required>
+                </div>
+                <div class="form-group">
+                    <label for="post-description">Description</label>
+                    <textarea id="post-description" name="post-description" placeholder="Enter post description" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="thumbnail">Thumbnail (Image)</label>
+                    <input type="file" id="thumbnail" name="thumbnail" accept="image/*" required>
+                </div>
+                <div class="form-group">
+                    <label for="post-type">Type</label>
+                    <select id="post-type" name="post-type" required>
+                        <option value="physical">Physical</option>
+                        <option value="virtual">Virtual</option>
+                    </select>
+                </div>
+                <div id="physical-fields" class="form-group">
+                    <label for="physical-images">Upload Images (Max 3)</label>
+                    <input type="file" id="physical-images" name="physical-images" accept="image/*" multiple max="3">
+                </div>
+                <div id="virtual-fields" class="form-group">
+                    <label for="virtual-file">Upload File (PDF, Max 10MB)</label>
+                    <input type="file" id="virtual-file" name="virtual-file" accept=".pdf" max-size="10485760">
+                </div>
+                <button type="submit" class="create-post-button">Create Post</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Firebase CDN -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAmSC20LuRf5GaBOoWH6IOHcUnPC9prpGY",
+            authDomain: "scholarbuddy-a7229.firebaseapp.com",
+            projectId: "scholarbuddy-a7229",
+            storageBucket: "scholarbuddy-a7229.appspot.com",
+            messagingSenderId: "402957942354",
+            appId: "1:402957942354:web:05d96311489a21fd37698b",
+            measurementId: "G-DGGY82XP9X"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Initialize Cloudinary
+        const cloudinary = window.cloudinary.Cloudinary.new({ cloud_name: "dhily4og7" });
+
+        // Save Profile Data
+        const saveProfileData = async (userId, phone, state, city, about) => {
+            try {
+                await setDoc(doc(db, "users", userId), {
+                    phone,
+                    state,
+                    city,
+                    about
+                });
+                console.log("Profile data saved successfully!");
+                alert("Profile data saved successfully!");
+            } catch (error) {
+                console.error("Error saving profile data:", error);
+                alert("Error saving profile data. Please try again.");
+            }
+        };
+
+        // Load Profile Data
+        const loadProfileData = async (userId) => {
+            try {
+                const docRef = doc(db, "users", userId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById("phone").value = data.phone || "";
+                    document.getElementById("state").value = data.state || "";
+                    document.getElementById("city").value = data.city || "";
+                    document.getElementById("about").value = data.about || "";
+                } else {
+                    console.log("No profile data found.");
+                }
+            } catch (error) {
+                console.error("Error loading profile data:", error);
+            }
+        };
+
+        // Upload File to Cloudinary
+        const uploadToCloudinary = async (file) => {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("upload_preset", "deepak"); // Replace with your upload preset
+
+            try {
+                const response = await fetch(`https://api.cloudinary.com/v1_1/dhily4og7/upload`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error("Failed to upload file");
+                }
+
+                const data = await response.json();
+                return data.secure_url;
+            } catch (error) {
+                console.error("Error uploading file to Cloudinary:", error);
+                throw error;
+            }
+        };
+
+        // Handle Post Creation
+        const handlePostCreation = async (userId, title, description, thumbnail, type, files) => {
+            try {
+                // Upload thumbnail to Cloudinary
+                const thumbnailUrl = await uploadToCloudinary(thumbnail);
+
+                // Upload files (images or PDF) to Cloudinary
+                let fileUrls = [];
+                for (const file of files) {
+                    const fileUrl = await uploadToCloudinary(file);
+                    fileUrls.push(fileUrl);
+                }
+
+                // Save post data to Firestore
+                await addDoc(collection(db, "posts"), {
+                    userId,
+                    title,
+                    description,
+                    thumbnail: thumbnailUrl,
+                    type,
+                    files: fileUrls,
+                    createdAt: new Date()
+                });
+
+                console.log("Post created successfully!");
+                alert("Post created successfully!");
+            } catch (error) {
+                console.error("Error creating post:", error);
+                alert("Error creating post. Please try again.");
+            }
+        };
+
+        // Fetch Posts
+        const fetchPosts = async (userId) => {
+            try {
+                const postsRef = collection(db, "posts");
+                const querySnapshot = await getDocs(query(postsRef, where("userId", "==", userId)));
+                const posts = [];
+                querySnapshot.forEach((doc) => {
+                    posts.push({ id: doc.id, ...doc.data() });
+                });
+                return posts;
+            } catch (error) {
+                console.error("Error fetching posts:", error);
+                return [];
+            }
+        };
+
+        // Render Posts
+        const renderPosts = (posts) => {
+            const postList = document.getElementById("post-list");
+            postList.innerHTML = ""; // Clear existing posts
+
+            posts.forEach((post) => {
+                const postElement = document.createElement("div");
+                postElement.className = "post-item";
+                postElement.innerHTML = `
+                    <h3>${post.title}</h3>
+                    <p><strong>Description:</strong> ${post.description}</p>
+                    <img src="${post.thumbnail}" alt="Thumbnail" class="post-thumbnail">
+                    <p><strong>Type:</strong> ${post.type === "physical" ? "Physical Post" : "Virtual Post"}</p>
+                    <p><strong>Files:</strong></p>
+                    <ul>
+                        ${post.files.map((file) => `<li><a href="${file}" target="_blank">View File</a></li>`).join("")}
+                    </ul>
+                    <p><strong>Created At:</strong> ${new Date(post.createdAt.seconds * 1000).toLocaleString()}</p>
+                `;
+                postList.appendChild(postElement);
+            });
+        };
+
+        // Check if user is logged in
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is logged in
+                console.log("User is logged in:", user);
+                document.getElementById("username").textContent = user.displayName || "User";
+                loadProfileData(user.uid);
+
+                // Fetch and render posts
+                const posts = await fetchPosts(user.uid);
+                renderPosts(posts);
+
+                // Save profile data on form submission
+                document.getElementById("profile-form").addEventListener("submit", (e) => {
+                    e.preventDefault();
+                    const phone = document.getElementById("phone").value;
+                    const state = document.getElementById("state").value;
+                    const city = document.getElementById("city").value;
+                    const about = document.getElementById("about").value;
+                    saveProfileData(user.uid, phone, state, city, about);
+                });
+
+                // Open Post Modal
+                document.getElementById("new-post").addEventListener("click", () => {
+                    document.getElementById("post-modal").style.display = "block";
+                });
+
+                // Close Post Modal
+                document.querySelector(".close").addEventListener("click", () => {
+                    document.getElementById("post-modal").style.display = "none";
+                });
+
+                // Handle Post Form Submission
+                document.getElementById("post-form").addEventListener("submit", async (e) => {
+                    e.preventDefault();
+                    const title = document.getElementById("post-title").value;
+                    const description = document.getElementById("post-description").value;
+                    const thumbnail = document.getElementById("thumbnail").files[0];
+                    const type = document.getElementById("post-type").value;
+                    const files = type === "physical"
+                        ? Array.from(document.getElementById("physical-images").files)
+                        : [document.getElementById("virtual-file").files[0]];
+
+                    if (files.length === 0) {
+                        alert("Please upload files.");
+                        return;
+                    }
+
+                    await handlePostCreation(user.uid, title, description, thumbnail, type, files);
+                    document.getElementById("post-modal").style.display = "none";
+
+                    // Refresh posts after creating a new one
+                    const posts = await fetchPosts(user.uid);
+                    renderPosts(posts);
+                });
+
+                // Toggle Post Type Fields
+                document.getElementById("post-type").addEventListener("change", (e) => {
+                    const type = e.target.value;
+                    document.getElementById("physical-fields").style.display = type === "physical" ? "block" : "none";
+                    document.getElementById("virtual-fields").style.display = type === "virtual" ? "block" : "none";
+                });
+            } else {
+                // Redirect to login page if not logged in
+                console.log("User is not logged in. Redirecting to login.html...");
+                window.location.href = "login.html";
+            }
+        });
+    </script>
+</body>
+</html>
